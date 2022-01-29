@@ -23,6 +23,7 @@ class SceneNode;
 
 namespace rviz
 {
+class BoolProperty;
 class ColorProperty;
 class EnumProperty;
 class FloatProperty;
@@ -63,7 +64,7 @@ protected:
   virtual void reset() override;
 
 private Q_SLOTS:
-  void updateLightType();
+  void updateLightTypeOrUseCam();
   void updateDiffuseColor();
   void updateSpecularColor();
   void updateDirection();
@@ -76,6 +77,7 @@ private:
   boost::shared_ptr<LightVisual> visual_;
 
   // User-editable property variables
+  rviz::BoolProperty* use_camera_pose_property_;
   rviz::TfFrameProperty* frame_property_;
   rviz::EnumProperty* light_type_property_;
   rviz::ColorProperty* diffuse_property_;

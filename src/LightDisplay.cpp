@@ -13,12 +13,15 @@
 
 #include <rviz/frame_manager.h>
 #include <rviz/visualization_manager.h>
+#include <rviz/view_manager.h>
+#include <rviz/properties/bool_property.h>
 #include <rviz/properties/color_property.h>
 #include <rviz/properties/enum_property.h>
 #include <rviz/properties/float_property.h>
 #include <rviz/properties/tf_frame_property.h>
 #include <rviz/properties/vector_property.h>
 #include <OgreLight.h>
+#include <OgreCamera.h>
 
 
 namespace rviz_lighting
@@ -33,13 +36,17 @@ LightDisplay::LightDisplay()
   : Display()
   , frame_position_(0, 0, 0)
 {
+  use_camera_pose_property_ =
+      new BoolProperty("Use Camera Pose", true, "Weather to use position and orientation from camera",
+                       this, SLOT(updateLightTypeOrUseCam()));
+
   frame_property_ = new TfFrameProperty("Reference Frame", TfFrameProperty::FIXED_FRAME_STRING,
                                         "The TF frame to which this light is attached. The frame position will have no effect on Directional lights. The frame orientation will have no effect on Point lights.",
                                         this, NULL, true);
 
   light_type_property_ = new EnumProperty("Light Type", "Directional",
                                           "Which type of light",
-                                          this, SLOT(updateLightType()));
+                                          this, SLOT(updateLightTypeOrUseCam()));
   light_type_property_->addOption("Directional", Ogre::Light::LT_DIRECTIONAL);
   light_type_property_->addOption("Point", Ogre::Light::LT_POINT);
   light_type_property_->addOption("Spotlight", Ogre::Light::LT_SPOTLIGHT);
@@ -75,6 +82,13 @@ LightDisplay::~LightDisplay()
 
 void LightDisplay::update(float wall_dt, float ros_dt)
 {
+  if(use_camera_pose_property_->getBool())
+  {
+    visual_->setDirection(context_->getViewManager()->getCurrent()->getCamera()->getDerivedDirection());
+    visual_->setPosition(context_->getViewManager()->getCurrent()->getCamera()->getDerivedPosition());
+    return;
+  }
+
   QString qframe = frame_property_->getFrame();
   std::string frame = qframe.toStdString();
 
@@ -113,7 +127,7 @@ void LightDisplay::onInitialize()
   visual_.reset(new LightVisual(context_->getSceneManager(), scene_node_));
 
   // Show and hide the appropriate properties for the current type of light
-  updateLightType();
+  updateLightTypeOrUseCam();
 }
 
 void LightDisplay::onEnable()
@@ -131,7 +145,7 @@ void LightDisplay::reset()
   Display::reset();
 }
 
-void LightDisplay::updateLightType()
+void LightDisplay::updateLightTypeOrUseCam()
 {
   switch(light_type_property_->getOptionInt())
   {
@@ -153,6 +167,15 @@ void LightDisplay::updateLightType()
     outer_angle_property_->setHidden(false);
     falloff_property_->setHidden(false);
     break;
+  }
+
+  if (use_camera_pose_property_->getBool())
+  {
+    frame_property_->setHidden(true);
+    direction_property_->setHidden(true);
+    position_property_->setHidden(true);
+  } else {
+    frame_property_->setHidden(false);
   }
 
   visual_->setLightType(light_type_property_->getOptionInt());
